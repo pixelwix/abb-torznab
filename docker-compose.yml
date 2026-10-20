@@ -1,0 +1,16 @@
+# AudioBook Bay -> Torznab bridge. Point Prowlarr at http://<this host>:8791 (keep it on your LAN).
+# Settings come from a .env file next to this one (see .env.example); all have defaults.
+services:
+  abb-torznab:
+    build: .
+    image: abb-torznab:local
+    container_name: abb-torznab
+    restart: unless-stopped
+    ports:
+      - "${BIND_ADDR:-0.0.0.0}:8791:8791"
+    environment:
+      ABB_BASE: ${ABB_BASE:-https://audiobookbay.lu}         # change if ABB moves domains
+      MAX_RESULTS: ${MAX_RESULTS:-10}
+      EDITION_PREFERENCE: ${EDITION_PREFERENCE:-produced}    # produced | narrated | any (see README)
+    volumes:
+      - ./data:/data                                         # detail-page cache (safe to delete)

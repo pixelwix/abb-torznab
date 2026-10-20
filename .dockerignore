@@ -1,0 +1,8 @@
+data
+tests
+.git
+*.md
+deploy.sh
+deploy.env*
+.env
+__pycache__
