@@ -1,5 +1,31 @@
 # Session Log
 
+## 2026-10-21 — ABB blocked our IP: VPN proxy, server switching, back-off
+
+**Done**
+- Found every ABB domain timing out from the home connection while it loaded on a phone:
+  ABB had blocked the home IP. Confirmed by loading ABB through a VPN HTTP proxy.
+- `ABB_PROXY` (passed to the container as `HTTPS_PROXY`, which urllib already honours):
+  ABB requests leave through a VPN. Empty means direct, as before.
+- `fetch` now counts failures. After 3 in a row it asks the proxy VPN's Gluetun control API
+  (`ABB_VPN_CONTROL`, `ABB_VPN_KEY`) for a new server (up to 3 switches, 30 s settle each);
+  then, or straight away without VPN control, it leaves ABB alone for 30 minutes and answers
+  empty. Any success resets the count. Control calls never go through the proxy.
+- Deployed with a VPN container of its own (not the torrent one), random servers across
+  several regions. README, `.env.example` and `docker-compose.yml` document the settings.
+
+**Verification**
+- 21 unit tests pass (5 new in `BlockTests`).
+- Live: searches answered through the VPN; "Dark Age" returned only the Dramatized
+  Adaptation and Harry Potter only the Full-Cast edition (full-cast rule confirmed). A server
+  switch called from inside the container succeeded and the next search worked.
+
+**Next steps**
+- Watch logs for `switched VPN server` / `leaving it alone`: frequent switches mean ABB is
+  blocking VPN ranges too.
+- Minor ranking gaps seen live: "Red Rising Series from AUDIBLE" passes the bundle filter;
+  a Hindi edition appears for The Sandman. ReadMeABook ranked correctly, so left alone.
+
 ## 2026-10-20 — Initial build, public release, part/bundle fixes
 
 **Done**

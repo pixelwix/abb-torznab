@@ -24,6 +24,11 @@ Layout of `app.py`, top to bottom: configuration → ABB access (`fetch`, `parse
   `python3 -m unittest discover -s tests`. `deploy.sh` refuses to deploy on failure.
 - **Fail soft.** If ABB is down or changes, answer an empty result list (never an error,
   never cache the empty answer) so clients fall back to other indexers.
+- **Be gentle with ABB.** Every ABB request goes through `fetch`, which counts failures,
+  switches VPN server through Gluetun's control API (`ABB_VPN_CONTROL`) and then pauses ABB
+  requests for 30 minutes. Don't add ABB requests that bypass it, and don't add request volume
+  (more variants, more parallel detail fetches, shorter caches) without a reason: ABB has
+  blocked a deployment's IP before.
 - **Ranking rules are behaviour, not style.** Keep these unless the user changes them:
   - pooled multi-variant search, ranked by title-word overlap;
   - edition preference (`produced` default: dramatized / full cast / GraphicAudio wins);
