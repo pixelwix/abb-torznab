@@ -9,6 +9,7 @@ Endpoints
   GET /api?t=caps                         Torznab capabilities
   GET /api?t=search|book&q=...            search (q, or title + author)
   GET /api?t=search  (no q)               latest uploads (Prowlarr test / RSS)
+  POST /prefs  {title, preference}        per-book edition choice (X-Token header)
   GET /health                             liveness
 
 See README.md for setup and the search rules.
@@ -30,6 +31,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 BASE = os.environ.get("ABB_BASE", "https://audiobookbay.lu").rstrip("/")
 PORT = int(os.environ.get("PORT", "8791"))
 CACHE_FILE = os.environ.get("CACHE_FILE", "/data/details.json")
+PREFS_FILE = os.environ.get("PREFS_FILE", os.path.join(os.path.dirname(CACHE_FILE) or ".", "prefs.json"))
+PREFS_TOKEN = os.environ.get("PREFS_TOKEN", "")  # required to write per-book preferences; unset = writes disabled
+PREFS_TTL = 60 * 86400                            # a per-book choice is forgotten after 60 days
 MAX_RESULTS = int(os.environ.get("MAX_RESULTS", "10"))
 SEARCH_TTL = 600     # seconds a search result list is reused
 LATEST_TTL = 1800    # seconds the front-page list is reused
@@ -187,9 +191,55 @@ def overlap(key_words, title):
     return len(key_words & set(clean_query(title).split())) / max(len(key_words), 1)
 
 
+# --- per-book edition choices ------------------------------------------------------
+# A requester can pick the edition for one book (e.g. "standard reading" where the house
+# default is full cast). The requesting app POSTs {title, preference} before handing the
+# request to ReadMeABook; searches whose query contains that title then use it.
+
+VALID_PREFERENCES = ("produced", "narrated", "any")
+
+
+def _load_prefs():
+    try:
+        with open(PREFS_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+_prefs = _load_prefs()  # cleaned title -> {"preference", "at"}
+
+
+def set_preference(title, preference):
+    key = title_part(title) or clean_query(title)
+    if not key or preference not in VALID_PREFERENCES:
+        raise ValueError("title and a preference of produced|narrated|any are required")
+    with _lock:
+        now = time.time()
+        for k in [k for k, v in _prefs.items() if now - v["at"] > PREFS_TTL]:
+            del _prefs[k]
+        _prefs[key] = {"preference": preference, "at": now}
+        _searches.clear()  # cached answers may now be filtered differently
+        tmp = PREFS_FILE + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(_prefs, f)
+        os.replace(tmp, PREFS_FILE)
+    return key
+
+
+def preference_for(query):
+    """The per-book choice whose title words all appear in the query, else the default."""
+    words = set(clean_query(query).split())
+    now = time.time()
+    with _lock:
+        matches = [(len(k.split()), v["preference"]) for k, v in _prefs.items()
+                   if now - v["at"] <= PREFS_TTL and set(k.split()) <= words]
+    return max(matches)[1] if matches else EDITION_PREFERENCE
+
+
 def rank(results, query, preference=None):
     """Closest title first, then apply the edition preference to versions of the requested book."""
-    preference = preference or EDITION_PREFERENCE
+    preference = preference or preference_for(query)
     key = set((title_part(query) or clean_query(query)).split()) - STOP_WORDS
     ranked = sorted(results, key=lambda r: overlap(key, r["title"]), reverse=True)
     same_book = lambda r: overlap(key, r["title"]) >= SAME_BOOK
@@ -205,7 +255,8 @@ def search(query):
     q = clean_query(query)
     if not q:
         return latest()
-    cached = _cached(q, SEARCH_TTL)
+    cache_key = q + "|" + preference_for(query)
+    cached = _cached(cache_key, SEARCH_TTL)
     if cached is not None:
         return cached
     pooled, seen, errors = [], set(), 0
@@ -222,7 +273,7 @@ def search(query):
                 pooled.append(r)
     items = with_magnets(rank(pooled, query)[:MAX_RESULTS])
     if items or not errors:  # don't cache an empty answer caused by ABB being down
-        _store(q, items)
+        _store(cache_key, items)
     return items
 
 
@@ -317,6 +368,19 @@ class Handler(BaseHTTPRequestHandler):
             log("request failed: %s" % e)
             items = []
         self._send(200, rss(items))
+
+    def do_POST(self):
+        if urllib.parse.urlparse(self.path).path != "/prefs":
+            return self._send(404, "not found", "text/plain")
+        if not PREFS_TOKEN or self.headers.get("X-Token") != PREFS_TOKEN:
+            return self._send(403, '{"error":"forbidden"}', "application/json")
+        try:
+            body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
+            key = set_preference(body.get("title", ""), body.get("preference", ""))
+        except (ValueError, json.JSONDecodeError) as e:
+            return self._send(400, json.dumps({"error": str(e)}), "application/json")
+        log(f"edition preference for '{key}': {body['preference']}")
+        self._send(200, json.dumps({"ok": True, "title": key}), "application/json")
 
     def log_message(self, fmt, *args):
         log("%s %s" % (self.address_string(), fmt % args))

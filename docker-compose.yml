@@ -12,5 +12,6 @@ services:
       ABB_BASE: ${ABB_BASE:-https://audiobookbay.lu}         # change if ABB moves domains
       MAX_RESULTS: ${MAX_RESULTS:-10}
       EDITION_PREFERENCE: ${EDITION_PREFERENCE:-produced}    # produced | narrated | any (see README)
+      PREFS_TOKEN: ${PREFS_TOKEN:-}                          # enables POST /prefs (per-book choices)
     volumes:
-      - ./data:/data                                         # detail-page cache (safe to delete)
+      - ./data:/data                                         # info-hash cache + per-book choices

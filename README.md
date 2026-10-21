@@ -55,6 +55,17 @@ Keep it on your LAN — it has no authentication. Don't publish it through a rev
 
   It only applies when both versions exist; a book with just one version is always returned.
   Unrelated results are untouched. Change it with `docker compose up -d` after editing.
+* **Per-book choice** — a request app can override the edition for one book. Set
+  `PREFS_TOKEN` in `.env`, then send the choice *before* creating the request in ReadMeABook:
+
+  ```bash
+  curl -X POST http://<docker host>:8791/prefs -H "X-Token: $PREFS_TOKEN" \
+       -H "Content-Type: application/json" \
+       -d '{"title": "Threshing Day (Wing and Claw Collection)", "preference": "narrated"}'
+  ```
+
+  Any search whose query contains that title then uses it instead of `EDITION_PREFERENCE`.
+  Choices are kept in `data/prefs.json` and forgotten after 60 days.
 * **Empty query** (Prowlarr's connection test, RSS polling) returns ABB's latest uploads.
   ReadMeABook's RSS monitor uses this to match new uploads to waiting requests.
 * **ABB down** — the bridge answers with an empty list (and doesn't cache it), so

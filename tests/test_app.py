@@ -5,7 +5,9 @@ import tempfile
 import unittest
 from unittest import mock
 
-os.environ["CACHE_FILE"] = os.path.join(tempfile.mkdtemp(), "details.json")
+_tmp = tempfile.mkdtemp()
+os.environ["CACHE_FILE"] = os.path.join(_tmp, "details.json")
+os.environ["PREFS_FILE"] = os.path.join(_tmp, "prefs.json")
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import app  # noqa: E402
 
@@ -78,6 +80,28 @@ class StrategyTests(unittest.TestCase):
     def test_plain_readings_stay_when_no_produced_edition_exists(self):
         results = [{"title": "A Feast for Crows - George R. R. Martin"}]
         self.assertEqual(len(app.rank(results, "A Feast for Crows")), 1)
+
+
+class PreferenceTests(unittest.TestCase):
+    def setUp(self):
+        app._prefs.clear()
+
+    def test_per_book_choice_overrides_the_default_for_that_book_only(self):
+        app.set_preference("Threshing Day (Wing and Claw Collection)", "narrated")
+        self.assertEqual(app.preference_for("Threshing Day (Wing and Claw Collection) Rebecca Yarros"), "narrated")
+        self.assertEqual(app.preference_for("A Feast for Crows George R. R. Martin"), app.EDITION_PREFERENCE)
+        results = [{"title": "Threshing Day (Wing and Claw Collection) - Rebecca Yarros"},
+                   {"title": "Threshing Day [Dramatized Adaptation]: The Empyrean Series - Rebecca Yarros"}]
+        titles = [r["title"] for r in app.rank(results, "Threshing Day Rebecca Yarros")]
+        self.assertEqual(titles, ["Threshing Day (Wing and Claw Collection) - Rebecca Yarros"])
+
+    def test_series_prefixed_titles_match_on_the_title_part(self):
+        app.set_preference("Avatar, the Last Airbender: The Dawn of Yangchen", "any")
+        self.assertEqual(app.preference_for("Avatar, the Last Airbender: The Dawn of Yangchen F. C. Yee"), "any")
+
+    def test_invalid_preference_is_rejected(self):
+        with self.assertRaises(ValueError):
+            app.set_preference("Some Book", "louder")
 
 
 class SearchTests(unittest.TestCase):
