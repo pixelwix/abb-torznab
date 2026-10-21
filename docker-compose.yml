@@ -14,5 +14,7 @@ services:
       EDITION_PREFERENCE: ${EDITION_PREFERENCE:-produced}    # produced | narrated | any (see README)
       PREFS_TOKEN: ${PREFS_TOKEN:-}                          # enables POST /prefs (per-book choices)
       HTTPS_PROXY: ${ABB_PROXY:-}                            # e.g. a VPN container's HTTP proxy, if ABB blocks your IP
+      ABB_VPN_CONTROL: ${ABB_VPN_CONTROL:-}                  # that VPN's Gluetun control API, to switch server when ABB refuses
+      ABB_VPN_KEY: ${ABB_VPN_KEY:-}
     volumes:
       - ./data:/data                                         # info-hash cache + per-book choices

@@ -143,5 +143,59 @@ class SearchTests(unittest.TestCase):
         self.assertNotIn("threshing day", app._searches)
 
 
+class BlockTests(unittest.TestCase):
+    """ABB refusing the exit IP: switch VPN server, and pause rather than keep hammering."""
+
+    def setUp(self):
+        app._abb.update(fails=0, switches=0, paused_until=0.0)
+
+    def fail_times(self, n):
+        for _ in range(n):
+            app._abb["paused_until"] = 0.0  # step past the settle pause between rounds
+            with mock.patch("urllib.request.urlopen", side_effect=TimeoutError("timed out")):
+                with self.assertRaises(TimeoutError):
+                    app.fetch("https://abb.example/?s=x")
+
+    def test_switches_vpn_server_after_repeated_failures(self):
+        with mock.patch.object(app, "VPN_CONTROL", "http://vpn:8000"), \
+                mock.patch.object(app, "switch_vpn") as switch:
+            self.fail_times(2)
+            switch.assert_not_called()
+            self.fail_times(1)
+            switch.assert_called_once()
+        self.assertGreater(app._abb["paused_until"], 0)  # left alone while the VPN reconnects
+
+    def test_gives_up_for_a_while_when_switching_does_not_help(self):
+        with mock.patch.object(app, "VPN_CONTROL", "http://vpn:8000"), \
+                mock.patch.object(app, "switch_vpn") as switch:
+            self.fail_times(app.FAILS_BEFORE_SWITCH * (app.MAX_SWITCHES + 1))
+        self.assertEqual(switch.call_count, app.MAX_SWITCHES)
+        self.assertGreater(app._abb["paused_until"], app.time.time() + app.PAUSE - 60)
+
+    def test_pauses_without_vpn_control(self):
+        with mock.patch.object(app, "VPN_CONTROL", ""), mock.patch.object(app, "switch_vpn") as switch:
+            self.fail_times(app.FAILS_BEFORE_SWITCH)
+        switch.assert_not_called()
+        self.assertGreater(app._abb["paused_until"], app.time.time() + app.PAUSE - 60)
+
+    def test_paused_fetch_never_reaches_abb(self):
+        app._abb["paused_until"] = app.time.time() + 60
+        with mock.patch("urllib.request.urlopen") as urlopen:
+            with self.assertRaises(RuntimeError):
+                app.fetch("https://abb.example/")
+        urlopen.assert_not_called()
+
+    def test_success_resets_the_count(self):
+        ok = mock.MagicMock()
+        ok.__enter__.return_value.read.return_value = b"<html></html>"
+        with mock.patch.object(app, "VPN_CONTROL", "http://vpn:8000"), \
+                mock.patch.object(app, "switch_vpn") as switch:
+            self.fail_times(2)
+            with mock.patch("urllib.request.urlopen", return_value=ok):
+                app.fetch("https://abb.example/")
+            self.fail_times(2)
+        switch.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()

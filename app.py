@@ -51,13 +51,68 @@ EDITION_PREFERENCE = os.environ.get("EDITION_PREFERENCE", "produced").strip().lo
 PRODUCED = re.compile(r"dramati[sz]ed|full[- ]?cast|graphic ?audio|audio drama", re.I)
 SAME_BOOK = 0.5      # title-word overlap at which two results count as the same book
 
+# Gluetun control API of the VPN that ABB_PROXY goes through. When set, repeated ABB failures
+# (your exit IP refused) make the bridge ask that VPN for a new server.
+VPN_CONTROL = os.environ.get("ABB_VPN_CONTROL", "").rstrip("/")
+VPN_KEY = os.environ.get("ABB_VPN_KEY", "")
+FAILS_BEFORE_SWITCH = 3  # ABB failures in a row that count as "this IP is refused"
+MAX_SWITCHES = 3         # server switches in a row without a success before giving up for a while
+SWITCH_SETTLE = 30       # seconds ABB is left alone while the VPN reconnects
+PAUSE = 1800             # seconds ABB is left alone after giving up (or straight away without VPN control)
+
 # --- ABB access --------------------------------------------------------------
+
+_abb_lock = threading.Lock()
+_abb = {"fails": 0, "switches": 0, "paused_until": 0.0}
 
 
 def fetch(url, timeout=20):
+    if time.time() < _abb["paused_until"]:
+        raise RuntimeError("ABB paused after repeated failures")
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept-Language": "en"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return r.read().decode("utf-8", "replace")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            page = r.read().decode("utf-8", "replace")
+    except Exception:
+        _abb_failed()
+        raise
+    with _abb_lock:
+        _abb["fails"] = _abb["switches"] = 0
+    return page
+
+
+def _abb_failed():
+    """Count a failure; every FAILS_BEFORE_SWITCH in a row, switch VPN server or pause ABB requests."""
+    with _abb_lock:
+        _abb["fails"] += 1
+        if _abb["fails"] < FAILS_BEFORE_SWITCH:
+            return
+        _abb["fails"] = 0
+        switch = bool(VPN_CONTROL) and _abb["switches"] < MAX_SWITCHES
+        if switch:
+            _abb["switches"] += 1
+            _abb["paused_until"] = time.time() + SWITCH_SETTLE
+        else:
+            _abb["switches"] = 0
+            _abb["paused_until"] = time.time() + PAUSE
+    if not switch:
+        log(f"ABB keeps failing; leaving it alone for {PAUSE // 60} minutes")
+        return
+    try:
+        switch_vpn()
+        log(f"ABB keeps failing; switched VPN server (attempt {_abb['switches']} of {MAX_SWITCHES})")
+    except Exception as e:
+        log("VPN server switch failed: %s" % e)
+
+
+def switch_vpn():
+    """Restart the VPN through Gluetun's control API; with random server selection it reconnects elsewhere."""
+    direct = urllib.request.build_opener(urllib.request.ProxyHandler({}))  # never via ABB_PROXY
+    for status in ("stopped", "running"):
+        req = urllib.request.Request(VPN_CONTROL + "/v1/vpn/status", method="PUT",
+                                     data=json.dumps({"status": status}).encode(),
+                                     headers={"X-API-Key": VPN_KEY, "Content-Type": "application/json"})
+        direct.open(req, timeout=30).close()
 
 
 def size_bytes(text):
@@ -408,5 +463,6 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     os.makedirs(os.path.dirname(CACHE_FILE) or ".", exist_ok=True)
-    log(f"listening on :{PORT}, source {BASE}, edition preference {EDITION_PREFERENCE}")
+    log(f"listening on :{PORT}, source {BASE}, edition preference {EDITION_PREFERENCE}, "
+        f"VPN server switching {'on' if VPN_CONTROL else 'off'}")
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()

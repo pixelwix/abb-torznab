@@ -70,6 +70,9 @@ Keep it on your LAN — it has no authentication. Don't publish it through a rev
   ReadMeABook's RSS monitor uses this to match new uploads to waiting requests.
 * **ABB down** — the bridge answers with an empty list (and doesn't cache it), so
   ReadMeABook simply falls back to the other indexers.
+  After 3 failures in a row it stops asking ABB for 30 minutes rather than keep hammering it.
+  With `ABB_VPN_CONTROL` set it first switches VPN server (up to 3 times), since repeated
+  failures usually mean ABB has blocked that exit IP.
 * ABB shows no seeder counts; items report a neutral 10/10 so clients don't discard them.
 
 ## Setup
@@ -124,7 +127,8 @@ Tests: `python3 -m unittest discover -s tests` (no network needed).
 |---|---|
 | Every search returns no items | ABB is down — `curl -I https://audiobookbay.lu/` from the docker host. Logs show `search '…' failed`. Nothing to do; other indexers keep working. |
 | ABB moved to a new domain | Set `ABB_BASE` in `.env`, then `docker compose up -d`. |
-| Every search times out but ABB loads elsewhere (your IP is blocked) | Set `ABB_PROXY` in `.env` to an HTTP proxy that leaves through a VPN (for example Gluetun with `HTTPPROXY=on`), then `docker compose up -d`. |
+| Every search times out but ABB loads elsewhere (your IP is blocked) | Set `ABB_PROXY` in `.env` to an HTTP proxy that leaves through a VPN (for example Gluetun with `HTTPPROXY=on`), then `docker compose up -d`. Use a VPN container of its own, not your torrent one, and also set `ABB_VPN_CONTROL` / `ABB_VPN_KEY` to its control API so the bridge can switch server when that exit gets blocked too. |
+| Logs say `leaving it alone for 30 minutes` | ABB failed 3 times in a row (after up to 3 VPN server switches, if set). Searches answer empty until the pause ends. |
 | Right book exists on ABB but isn't found | Try the query in the curl above. If ABB's own search can't find it with any of the 4 variations, add a custom search term on the request in ReadMeABook. |
 | Results found but ReadMeABook picks nothing | Its 50/100 quality bar rejected them (shown as "No quality matches" on the request). Pick one by hand: ReadMeABook → request → Interactive search. |
 | Page layout changed (results parse as empty while ABB is up) | Update `parse_search` / `parse_detail` in `app.py`; the tests show the HTML shape they expect. |
