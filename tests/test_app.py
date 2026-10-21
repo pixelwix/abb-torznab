@@ -89,7 +89,9 @@ class StrategyTests(unittest.TestCase):
     def test_bundles_are_dropped_unless_asked_for(self):
         results = [{"title": "Red Rising Book 1 - 5 Dramatized - Pierce Brown"}, {"title": "Dark Age - Pierce Brown"},
                    {"title": "Harry Potter, Complete Series, Chapterized (Full-Cast Edition) - J.K. Rowling"},
-                   {"title": "Entire Audiobooks Collection - Various"}]
+                   {"title": "Entire Audiobooks Collection - Various"},
+                   {"title": "The Extinction Cycle #0.5-7 +Missions 1-2 +Dark Age 1-3 - Nicholas Sansbury Smith"},
+                   {"title": "Dark Hearts 1-6 - Jagger Cole"}]
         titles = [r["title"] for r in app.rank(results, "Dark Age Pierce Brown")]
         self.assertEqual(titles, ["Dark Age - Pierce Brown"])
         self.assertEqual(len(app.rank(results[:1], "Red Rising Books 1-5")), 1)

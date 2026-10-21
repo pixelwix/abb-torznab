@@ -255,8 +255,10 @@ def rank(results, query, preference=None):
     # part: drop releases labelled with a different part number of the same book.
     # Multi-book bundles ("Red Rising Book 1 - 5", "Complete Series") only when a bundle was asked for.
     bundle = re.compile(r"\bbooks?\s*\d+\s*[-\u2013]\s*\d+\b|\bcomplete (series|collection)\b|\bbox(ed)? ?set\b|\bentire\b.*\bcollection\b|\bcollection\s*-\s*various\b|\b\d+\s*[-\u2013]\s*\d+\b(?=.*\b(books?|series)\b)", re.I)
-    if not bundle.search(query or ""):
-        ranked = [r for r in ranked if not bundle.search(r["title"])]
+    # A bare number range in a title ("Dark Age 1-3", "#0.5-7") also marks a bundle.
+    num_range = re.compile(r"#?\b\d+(?:\.\d+)?\s*[-\u2013]\s*\d+\b")
+    if not bundle.search(query or "") and not num_range.search(query or ""):
+        ranked = [r for r in ranked if not bundle.search(r["title"]) and not num_range.search(r["title"])]
     wanted = part_of(query)
     if wanted:
         ranked = [r for r in ranked if not (part_of(r["title"]) and part_of(r["title"]) != wanted)]
