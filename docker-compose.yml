@@ -13,5 +13,6 @@ services:
       MAX_RESULTS: ${MAX_RESULTS:-10}
       EDITION_PREFERENCE: ${EDITION_PREFERENCE:-produced}    # produced | narrated | any (see README)
       PREFS_TOKEN: ${PREFS_TOKEN:-}                          # enables POST /prefs (per-book choices)
+      HTTPS_PROXY: ${ABB_PROXY:-}                            # e.g. a VPN container's HTTP proxy, if ABB blocks your IP
     volumes:
       - ./data:/data                                         # info-hash cache + per-book choices

@@ -124,6 +124,7 @@ Tests: `python3 -m unittest discover -s tests` (no network needed).
 |---|---|
 | Every search returns no items | ABB is down — `curl -I https://audiobookbay.lu/` from the docker host. Logs show `search '…' failed`. Nothing to do; other indexers keep working. |
 | ABB moved to a new domain | Set `ABB_BASE` in `.env`, then `docker compose up -d`. |
+| Every search times out but ABB loads elsewhere (your IP is blocked) | Set `ABB_PROXY` in `.env` to an HTTP proxy that leaves through a VPN (for example Gluetun with `HTTPPROXY=on`), then `docker compose up -d`. |
 | Right book exists on ABB but isn't found | Try the query in the curl above. If ABB's own search can't find it with any of the 4 variations, add a custom search term on the request in ReadMeABook. |
 | Results found but ReadMeABook picks nothing | Its 50/100 quality bar rejected them (shown as "No quality matches" on the request). Pick one by hand: ReadMeABook → request → Interactive search. |
 | Page layout changed (results parse as empty while ABB is up) | Update `parse_search` / `parse_detail` in `app.py`; the tests show the HTML shape they expect. |
