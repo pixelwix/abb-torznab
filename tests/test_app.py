@@ -77,6 +77,15 @@ class StrategyTests(unittest.TestCase):
                    {"title": "Threshing Day [Dramatized Adaptation]: The Empyrean Series - Rebecca Yarros"}]
         self.assertEqual(len(app.rank(results, "Threshing Day Rebecca Yarros", preference="any")), 2)
 
+    def test_a_part_request_never_gets_another_part(self):
+        results = [{"title": "Dark Age (3 of 3) [Dramatized Adaptation] - Pierce Brown"},
+                   {"title": "Dark Age (1 of 3) [Dramatized Adaptation] - Pierce Brown"},
+                   {"title": "Dark Age - Pierce Brown"}]
+        titles = [r["title"] for r in app.rank(results, "Dark Age (1 of 3) [Dramatized Adaptation] Pierce Brown")]
+        self.assertIn("Dark Age (1 of 3) [Dramatized Adaptation] - Pierce Brown", titles)
+        self.assertNotIn("Dark Age (3 of 3) [Dramatized Adaptation] - Pierce Brown", titles)
+        self.assertEqual(app.part_of("Onyx Storm (Part 2 of 2)"), (2, 2))
+
     def test_plain_readings_stay_when_no_produced_edition_exists(self):
         results = [{"title": "A Feast for Crows - George R. R. Martin"}]
         self.assertEqual(len(app.rank(results, "A Feast for Crows")), 1)

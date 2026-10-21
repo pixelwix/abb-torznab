@@ -187,6 +187,15 @@ def query_variants(query):
     return [v for v in dict.fromkeys(variants) if len(v) >= 3][:4]
 
 
+PART = re.compile(r"\(?\b(?:part\s*)?(\d+)\s*of\s*(\d+)\b\)?", re.I)
+
+
+def part_of(text):
+    """(n, total) from "(Part 2 of 3)" / "(2 of 3)", else None."""
+    m = PART.search(text or "")
+    return (int(m.group(1)), int(m.group(2))) if m else None
+
+
 def overlap(key_words, title):
     return len(key_words & set(clean_query(title).split())) / max(len(key_words), 1)
 
@@ -242,6 +251,11 @@ def rank(results, query, preference=None):
     preference = preference or preference_for(query)
     key = set((title_part(query) or clean_query(query)).split()) - STOP_WORDS
     ranked = sorted(results, key=lambda r: overlap(key, r["title"]), reverse=True)
+    # A request for one part of a split edition ("Dark Age (1 of 3)") must never get another
+    # part: drop releases labelled with a different part number of the same book.
+    wanted = part_of(query)
+    if wanted:
+        ranked = [r for r in ranked if not (part_of(r["title"]) and part_of(r["title"]) != wanted)]
     same_book = lambda r: overlap(key, r["title"]) >= SAME_BOOK
     produced = [r for r in ranked if same_book(r) and PRODUCED.search(r["title"])]
     narrated = [r for r in ranked if same_book(r) and not PRODUCED.search(r["title"])]
