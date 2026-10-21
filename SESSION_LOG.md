@@ -23,8 +23,9 @@
 **Next steps**
 - Watch logs for `switched VPN server` / `leaving it alone`: frequent switches mean ABB is
   blocking VPN ranges too.
-- Minor ranking gaps seen live: "Red Rising Series from AUDIBLE" passes the bundle filter;
-  a Hindi edition appears for The Sandman. ReadMeABook ranked correctly, so left alone.
+- Minor ranking gap seen live: a Hindi edition appears for The Sandman. (The "Red Rising
+  Series from AUDIBLE" bundle gap was fixed the same day: a series named up front with no
+  book number now counts as a bundle.)
 
 ## 2026-10-20 — Initial build, public release, part/bundle fixes
 

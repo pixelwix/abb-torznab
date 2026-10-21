@@ -312,8 +312,13 @@ def rank(results, query, preference=None):
     bundle = re.compile(r"\bbooks?\s*\d+\s*[-\u2013]\s*\d+\b|\bcomplete (series|collection)\b|\bbox(ed)? ?set\b|\bentire\b.*\bcollection\b|\bcollection\s*-\s*various\b|\b\d+\s*[-\u2013]\s*\d+\b(?=.*\b(books?|series)\b)", re.I)
     # A bare number range in a title ("Dark Age 1-3", "#0.5-7") also marks a bundle.
     num_range = re.compile(r"#?\b\d+(?:\.\d+)?\s*[-\u2013]\s*\d+\b")
-    if not bundle.search(query or "") and not num_range.search(query or ""):
-        ranked = [r for r in ranked if not bundle.search(r["title"]) and not num_range.search(r["title"])]
+    # So does a series named up front with no book number ("Red Rising Series from AUDIBLE"), but
+    # not a book that names its series after the title ("Threshing Day: The Empyrean Series").
+    series_set = re.compile(r"^[^:\[(\u2013\d]*?\bseries\b(?!\s+of\b)(?![^:\[(\u2013]*\d)", re.I)
+    lead = lambda t: re.split(r"\s+-\s+", t or "")[0]
+    is_bundle = lambda t: bundle.search(t or "") or num_range.search(t or "") or series_set.search(lead(t))
+    if not is_bundle(query):
+        ranked = [r for r in ranked if not is_bundle(r["title"])]
     wanted = part_of(query)
     if wanted:
         ranked = [r for r in ranked if not (part_of(r["title"]) and part_of(r["title"]) != wanted)]

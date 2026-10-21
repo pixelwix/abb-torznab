@@ -33,8 +33,8 @@ Layout of `app.py`, top to bottom: configuration → ABB access (`fetch`, `parse
   - pooled multi-variant search, ranked by title-word overlap;
   - edition preference (`produced` default: dramatized / full cast / GraphicAudio wins);
   - a request for part N of M never gets a different part;
-  - multi-book bundles (book ranges, complete series, box sets, number ranges) are
-    dropped unless the query asks for a bundle.
+  - multi-book bundles (book ranges, complete series, box sets, number ranges, a series
+    named up front with no book number) are dropped unless the query asks for a bundle.
 - Keep `README.md` in sync with behaviour and settings, and add a `SESSION_LOG.md`
   entry at the end of each working session.
 

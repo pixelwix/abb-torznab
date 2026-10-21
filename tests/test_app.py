@@ -96,6 +96,18 @@ class StrategyTests(unittest.TestCase):
         self.assertEqual(titles, ["Dark Age - Pierce Brown"])
         self.assertEqual(len(app.rank(results[:1], "Red Rising Books 1-5")), 1)
 
+    def test_a_series_named_up_front_is_a_bundle(self):
+        # Real result for "Golden Son Pierce Brown" that slipped past the bundle rules.
+        results = [{"title": "Golden Son - Pierce Brown [MP3]"},
+                   {"title": "Red Rising Series from AUDIBLE - Pierce Brown [M4B]"},
+                   {"title": "Mistborn Series Book 1 - Brandon Sanderson"},
+                   {"title": "A Series of Unfortunate Events: The Bad Beginning - Lemony Snicket"},
+                   {"title": "Threshing Day [Dramatized Adaptation]: The Empyrean Series - Rebecca Yarros"}]
+        titles = [r["title"] for r in app.rank(results, "Golden Son Pierce Brown", preference="any")]
+        self.assertNotIn("Red Rising Series from AUDIBLE - Pierce Brown [M4B]", titles)
+        self.assertEqual(len(titles), 4)
+        self.assertEqual(len(app.rank(results[1:2], "Red Rising Series")), 1)  # asked for the series
+
     def test_plain_readings_stay_when_no_produced_edition_exists(self):
         results = [{"title": "A Feast for Crows - George R. R. Martin"}]
         self.assertEqual(len(app.rank(results, "A Feast for Crows")), 1)
