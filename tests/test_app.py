@@ -86,6 +86,13 @@ class StrategyTests(unittest.TestCase):
         self.assertNotIn("Dark Age (3 of 3) [Dramatized Adaptation] - Pierce Brown", titles)
         self.assertEqual(app.part_of("Onyx Storm (Part 2 of 2)"), (2, 2))
 
+    def test_bundles_are_dropped_unless_asked_for(self):
+        results = [{"title": "Red Rising Book 1 - 5 Dramatized - Pierce Brown"}, {"title": "Dark Age - Pierce Brown"},
+                   {"title": "Harry Potter, Complete Series, Chapterized (Full-Cast Edition) - J.K. Rowling"}]
+        titles = [r["title"] for r in app.rank(results, "Dark Age Pierce Brown")]
+        self.assertEqual(titles, ["Dark Age - Pierce Brown"])
+        self.assertEqual(len(app.rank(results[:1], "Red Rising Books 1-5")), 1)
+
     def test_plain_readings_stay_when_no_produced_edition_exists(self):
         results = [{"title": "A Feast for Crows - George R. R. Martin"}]
         self.assertEqual(len(app.rank(results, "A Feast for Crows")), 1)
