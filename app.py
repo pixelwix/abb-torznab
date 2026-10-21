@@ -254,7 +254,7 @@ def rank(results, query, preference=None):
     # A request for one part of a split edition ("Dark Age (1 of 3)") must never get another
     # part: drop releases labelled with a different part number of the same book.
     # Multi-book bundles ("Red Rising Book 1 - 5", "Complete Series") only when a bundle was asked for.
-    bundle = re.compile(r"\bbooks?\s*\d+\s*[-\u2013]\s*\d+\b|\bcomplete (series|collection)\b|\bbox(ed)? ?set\b|\b\d+\s*[-\u2013]\s*\d+\b(?=.*\b(books?|series)\b)", re.I)
+    bundle = re.compile(r"\bbooks?\s*\d+\s*[-\u2013]\s*\d+\b|\bcomplete (series|collection)\b|\bbox(ed)? ?set\b|\bentire\b.*\bcollection\b|\bcollection\s*-\s*various\b|\b\d+\s*[-\u2013]\s*\d+\b(?=.*\b(books?|series)\b)", re.I)
     if not bundle.search(query or ""):
         ranked = [r for r in ranked if not bundle.search(r["title"])]
     wanted = part_of(query)
