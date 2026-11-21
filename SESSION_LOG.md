@@ -2,7 +2,7 @@
 
 ### Session 2026-11-20 — Non-root container
 
-- Dockerfile adds user `app` (uid 1000) and `USER app`; host `/mnt/docker/abb-torznab/data` (CT108) chowned 1000:1000 first. Deployed with `./deploy.sh` (22 tests OK). Live: uid 1000, /health ok, data writable, no permission errors, Prowlarr `testall` 16/16 valid. Rollback: revert the Dockerfile change and `./deploy.sh` (data stays owned by 1000). Commits are local on `main`, NOT pushed (push was not authorized for this repo).
+- Dockerfile adds user `app` (uid 1000) and `USER app`; host `/mnt/docker/abb-torznab/data` (CT108) chowned 1000:1000 first. Deployed with `./deploy.sh` (22 tests OK). Live: uid 1000, /health ok, data writable, no permission errors, Prowlarr `testall` 16/16 valid. Rollback: revert the Dockerfile change and `./deploy.sh` (data stays owned by 1000). Pushed to origin/main on 2026-11-20 at the owner's word.
 
 ---
 
